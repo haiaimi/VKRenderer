@@ -49,6 +49,7 @@ private:
 	{
 		CreateInstance();
 		SetupDebugMessenger();
+		PickPhysicalDevice();
 	}
 
 	void CreateInstance()
@@ -65,6 +66,7 @@ private:
 		AppInfo.pEngineName = "No Engine";
 		AppInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 		AppInfo.apiVersion = VK_API_VERSION_1_0;
+		AppInfo.pNext = nullptr;
 
 		/// Create vulkan instance
 		// Get the required extension on this platform
@@ -86,18 +88,23 @@ private:
 
 		VkInstanceCreateInfo CreateInfo;
 
+		VkDebugUtilsMessengerCreateInfoEXT DebugCreateInfo;
 		if (EnableValidationLayers)
 		{
 			CreateInfo.enabledLayerCount = static_cast<uint32_t>(ValidationLayers.size());
 			CreateInfo.ppEnabledLayerNames = ValidationLayers.data();
+			PopulateDebugMessengerCreateInfo(DebugCreateInfo);
+			CreateInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&DebugCreateInfo;
 		}
 		else
 		{
 			CreateInfo.enabledLayerCount = 0;
+			CreateInfo.pNext = nullptr;
 		}
 
 		CreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 		CreateInfo.pApplicationInfo = &AppInfo;
+		CreateInfo.flags = 0;
 		CreateInfo.enabledExtensionCount = static_cast<uint32_t>(glfwExtensions.size());
 		CreateInfo.ppEnabledExtensionNames = glfwExtensions.data();
 
@@ -126,6 +133,17 @@ private:
 		if (!EnableValidationLayers)return;
 
 		VkDebugUtilsMessengerCreateInfoEXT CreateInfo;
+		PopulateDebugMessengerCreateInfo(CreateInfo);
+
+		if (CreateDebugUtilsMessagerEXT(Instance, &CreateInfo, nullptr, &DebugMessenger) != VK_SUCCESS)
+		{
+			throw std::runtime_error("failed to set up debug messenger!");
+		}
+	}
+
+	void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& CreateInfo)
+	{
+		CreateInfo = {};
 		CreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 		CreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
 									VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
@@ -134,12 +152,6 @@ private:
 								VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
 								VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 		CreateInfo.pfnUserCallback = DebugCallback;
-		CreateInfo.pUserData = nullptr;
-
-		if (CreateDebugUtilsMessagerEXT(Instance, &CreateInfo, nullptr, &DebugMessenger) != VK_SUCCESS)
-		{
-			throw std::runtime_error("failed to set up debug messenger!");
-		}
 	}
 
 	void DestroyDebugUtilMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
@@ -204,6 +216,31 @@ private:
 		return true;
 	}
 
+	void PickPhysicalDevice()
+	{
+		uint32_t DeviceCount = 0;
+		vkEnumeratePhysicalDevices(Instance, &DeviceCount, nullptr);
+
+		if (DeviceCount == 0)
+		{
+			throw std::runtime_error("failed to find GPUs with Vulkan support");
+		}
+
+		std::vector<VkPhysicalDevice> Devices(DeviceCount);
+		vkEnumeratePhysicalDevices(Instance, &DeviceCount, Devices.data());
+
+		for (const auto& Iter : Devices)
+		{
+			if (IsDeviceSuitable(Iter))
+				PhysicDevice = Iter;
+		}
+	}
+
+	bool IsDeviceSuitable(VkPhysicalDevice Device)
+	{
+		return true;
+	}
+
 	void MainLoop()
 	{
 		while (!glfwWindowShouldClose(Window))
@@ -232,6 +269,8 @@ private:
 	VkInstance Instance;
 
 	VkDebugUtilsMessengerEXT DebugMessenger;
+
+	VkPhysicalDevice PhysicDevice = VK_NULL_HANDLE;
 };
 
 int main()
