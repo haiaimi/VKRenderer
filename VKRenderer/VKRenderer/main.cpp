@@ -53,6 +53,7 @@ private:
 		CreateInstance();
 		SetupDebugMessenger();
 		PickPhysicalDevice();
+		CreateLogicalDevice();
 	}
 
 	void CreateInstance()
@@ -328,6 +329,19 @@ private:
 		}
 
 		return Indices;
+	}
+
+	void CreateLogicalDevice()
+	{
+		QueueFamilyIndices Indices = FindQueueFamilies(PhysicDevice);
+
+		VkDeviceQueueCreateInfo QueueCreateInfo{};
+		QueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		QueueCreateInfo.queueFamilyIndex = Indices.GraphicsFamily.value();
+		QueueCreateInfo.queueCount = 1;
+
+		float QueuePriority = 1.f;
+		QueueCreateInfo.pQueuePriorities = &QueuePriority;
 	}
 
 	void MainLoop()
