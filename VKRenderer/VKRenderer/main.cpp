@@ -10,6 +10,9 @@
 #include <iostream>
 #include <stdlib.h>
 #include <vector>
+#include <vulkan/vulkan_core.h>
+#include <map>
+#include <optional>
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -229,16 +232,102 @@ private:
 		std::vector<VkPhysicalDevice> Devices(DeviceCount);
 		vkEnumeratePhysicalDevices(Instance, &DeviceCount, Devices.data());
 
-		for (const auto& Iter : Devices)
+		// First, Choose a device that support the specified feature, such as geometry shader
+		/*for (const auto& Iter : Devices)
 		{
 			if (IsDeviceSuitable(Iter))
+			{
 				PhysicDevice = Iter;
+				break;
+			}
+		}*/
+
+		// Second, Choose a heighest performance deviceW
+		std::multimap<int, VkPhysicalDevice> Candidates;
+
+		for (const auto& Iter : Devices)
+		{
+			int Score = RateDeviceSuitability(Iter);
+			Candidates.insert(std::make_pair(Score, Iter));
+		}
+
+		if (Candidates.rbegin()->first > 0)
+			PhysicDevice = Candidates.rbegin()->second;
+		else
+			throw std::runtime_error("failed to find a suitable GPU");
+
+		if (PhysicDevice == VK_NULL_HANDLE)
+		{
+			throw std::runtime_error("failed to find a suitable GPU");
 		}
 	}
 
 	bool IsDeviceSuitable(VkPhysicalDevice Device)
 	{
-		return true;
+		// Check by supported queue family
+		//QueueFamilyIndices Indices = FindQueueFamilies(Device);
+		//return Indices.GraphicsFamily.has_value();
+
+		VkPhysicalDeviceProperties DeviceProperties;
+		vkGetPhysicalDeviceProperties(Device, &DeviceProperties);
+		
+		VkPhysicalDeviceFeatures DeviceFeatures;
+		vkGetPhysicalDeviceFeatures(Device, &DeviceFeatures);
+
+		return DeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU && DeviceFeatures.geometryShader;
+	}
+
+	int RateDeviceSuitability(VkPhysicalDevice Device)
+	{
+		VkPhysicalDeviceProperties DeviceProperties;
+		vkGetPhysicalDeviceProperties(Device, &DeviceProperties);
+		VkPhysicalDeviceFeatures DeviceFeatures;
+		vkGetPhysicalDeviceFeatures(Device, &DeviceFeatures);
+
+		int Score = 0;
+
+		if (DeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+			Score += 1000;
+		Score += DeviceProperties.limits.maxImageDimension2D;
+
+		if (!DeviceFeatures.geometryShader)
+			return 0;
+
+		return Score;
+	}
+
+	struct QueueFamilyIndices
+	{
+		std::optional<uint32_t> GraphicsFamily;
+
+		bool IsComplete()
+		{
+			return GraphicsFamily.has_value();
+		}
+	};
+
+	// Find queue family
+	QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice Device)
+	{
+		QueueFamilyIndices Indices;
+
+		uint32_t QueueFamilyCount = 0;
+		vkGetPhysicalDeviceQueueFamilyProperties(Device, &QueueFamilyCount, nullptr);
+		std::vector<VkQueueFamilyProperties> QueueFamilies(QueueFamilyCount);
+		vkGetPhysicalDeviceQueueFamilyProperties(Device, &QueueFamilyCount, QueueFamilies.data());
+
+		int i = 0;
+		for (const auto& Iter : QueueFamilies)
+		{
+			if (Iter.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+				Indices.GraphicsFamily = i;
+
+			if (Indices.IsComplete())
+				break;
+			i++;
+		}
+
+		return Indices;
 	}
 
 	void MainLoop()
