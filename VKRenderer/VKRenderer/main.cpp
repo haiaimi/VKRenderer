@@ -14,11 +14,14 @@
 #include <map>
 #include <optional>
 #include <set>
+#include <cstdint>
+#include <algorithm>
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
 const std::vector<const char*> ValidationLayers = { "VK_LAYER_KHRONOS_validation" };
+const std::vector<const char*> DeviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
 #ifdef NDEBUG
 	const bool EnableValidationLayerss = false;
@@ -56,6 +59,7 @@ private:
 		CreateSurface();
 		PickPhysicalDevice();
 		CreateLogicalDevice();
+		CreateSwapChain();
 	}
 
 	void CreateInstance()
@@ -222,6 +226,23 @@ private:
 		return true;
 	}
 
+	bool CheckDeviceExtensionsSupport(VkPhysicalDevice DeviceParam)
+	{
+		uint32_t ExtensionCount = 0;
+		vkEnumerateDeviceExtensionProperties(DeviceParam, nullptr, &ExtensionCount, nullptr);
+		std::vector<VkExtensionProperties> AvailableExtensions(ExtensionCount);
+		vkEnumerateDeviceExtensionProperties(DeviceParam, nullptr, &ExtensionCount, AvailableExtensions.data());
+
+		std::set<std::string> RequiredExtensions(DeviceExtensions.begin(), DeviceExtensions.end());
+
+		for (const auto& Iter : AvailableExtensions)
+		{
+			RequiredExtensions.erase(Iter.extensionName);
+		}
+
+		return RequiredExtensions.empty();
+	}
+
 	void CreateSurface()
 	{
 		if (glfwCreateWindowSurface(Instance, Window, nullptr, &Surface) != VK_SUCCESS)
@@ -244,17 +265,17 @@ private:
 		vkEnumeratePhysicalDevices(Instance, &DeviceCount, Devices.data());
 
 		// First, Choose a device that support the specified feature, such as geometry shader
-		/*for (const auto& Iter : Devices)
+		for (const auto& Iter : Devices)
 		{
 			if (IsDeviceSuitable(Iter))
 			{
 				PhysicDevice = Iter;
 				break;
 			}
-		}*/
+		}
 
 		// Second, Choose a heighest performance deviceW
-		std::multimap<int, VkPhysicalDevice> Candidates;
+		/*std::multimap<int, VkPhysicalDevice> Candidates;
 
 		for (const auto& Iter : Devices)
 		{
@@ -265,7 +286,7 @@ private:
 		if (Candidates.rbegin()->first > 0)
 			PhysicDevice = Candidates.rbegin()->second;
 		else
-			throw std::runtime_error("failed to find a suitable GPU");
+			throw std::runtime_error("failed to find a suitable GPU");*/
 
 		if (PhysicDevice == VK_NULL_HANDLE)
 		{
@@ -273,19 +294,28 @@ private:
 		}
 	}
 
-	bool IsDeviceSuitable(VkPhysicalDevice Device)
+	bool IsDeviceSuitable(VkPhysicalDevice DeviceParam)
 	{
-		// Check by supported queue family
-		//QueueFamilyIndices Indices = FindQueueFamilies(Device);
-		//return Indices.GraphicsFamily.has_value();
+		//Check by supported queue family
+		QueueFamilyIndices Indices = FindQueueFamilies(DeviceParam);
 
-		VkPhysicalDeviceProperties DeviceProperties;
+		bool ExtensionsSupported = CheckDeviceExtensionsSupport(DeviceParam);
+
+		bool SwapChainAdequate = false;
+		if (ExtensionsSupported)
+		{
+			SwapChainSupportDetails SwapChainSupport = QuerySwapChainSupport(DeviceParam);
+			SwapChainAdequate = !SwapChainSupport.Formats.empty() && !SwapChainSupport.PresentModes.empty();
+		}
+		return Indices.GraphicsFamily.has_value() && ExtensionsSupported && SwapChainAdequate;
+
+		/*VkPhysicalDeviceProperties DeviceProperties;
 		vkGetPhysicalDeviceProperties(Device, &DeviceProperties);
 		
 		VkPhysicalDeviceFeatures DeviceFeatures;
 		vkGetPhysicalDeviceFeatures(Device, &DeviceFeatures);
 
-		return DeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU && DeviceFeatures.geometryShader;
+		return DeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU && DeviceFeatures.geometryShader;*/
 	}
 
 	int RateDeviceSuitability(VkPhysicalDevice Device)
@@ -319,6 +349,51 @@ private:
 		}
 	};
 
+	struct SwapChainSupportDetails
+	{
+		VkSurfaceCapabilitiesKHR Capabilities;
+		std::vector<VkSurfaceFormatKHR> Formats;
+		std::vector<VkPresentModeKHR> PresentModes;
+	};
+
+	VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& AvailableFormats)
+		{
+			for (const auto& AvailableFormat : AvailableFormats)
+			{
+				if (AvailableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
+					AvailableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+					return AvailableFormat;
+			}
+			return AvailableFormats[0];
+		}
+
+		VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& AvailablePresentModes)
+		{
+			for (const auto& AvailablePresentMode : AvailablePresentModes)
+			{
+				// This mode use triple buffer, it has low latency and avoid tearing, very good
+				if (AvailablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+					return AvailablePresentMode;
+			}
+			return VK_PRESENT_MODE_FIFO_KHR;
+		}
+
+		// Choose the swap buffer size
+		VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& Capabilities)
+		{
+			// if Capabilities.currentExtent.width == UINT32_MAX means that we can use differ resolution compared with window resolution
+			if (Capabilities.currentExtent.width != UINT32_MAX)
+			{
+				return Capabilities.currentExtent;
+			}
+			else
+			{
+				VkExtent2D ActualExtent = { WIDTH, HEIGHT };
+				ActualExtent.width = std::max(Capabilities.minImageExtent.width, std::min(Capabilities.maxImageExtent.width, ActualExtent.width));
+				ActualExtent.height = std::max(Capabilities.minImageExtent.height, std::min(Capabilities.maxImageExtent.height, ActualExtent.height));
+			}
+		}
+
 	// Find queue family
 	QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice Device)
 	{
@@ -348,6 +423,35 @@ private:
 		}
 
 		return Indices;
+	}
+
+	SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice DeviceParam)
+	{
+		SwapChainSupportDetails Details;
+
+		// Basic surface capabilities(min/max number of images in swap chain, and min/max size of images)
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(DeviceParam, Surface, &Details.Capabilities);
+
+		// Surface format
+		uint32_t FormatCount;
+		vkGetPhysicalDeviceSurfaceFormatsKHR(DeviceParam, Surface, &FormatCount, nullptr);
+		if (FormatCount != 0)
+		{
+			Details.Formats.resize(FormatCount);
+			vkGetPhysicalDeviceSurfaceFormatsKHR(DeviceParam, Surface, &FormatCount, Details.Formats.data());
+		}
+
+		// Available surface presentation modes
+		uint32_t PresentModeCount;
+		vkGetPhysicalDeviceSurfacePresentModesKHR(DeviceParam, Surface, &PresentModeCount, nullptr);
+
+		if (PresentModeCount != 0)
+		{
+			Details.PresentModes.resize(PresentModeCount);
+			vkGetPhysicalDeviceSurfacePresentModesKHR(DeviceParam, Surface, &PresentModeCount, Details.PresentModes.data());
+		}
+
+		return Details;
 	}
 
 	void CreateLogicalDevice()
@@ -383,6 +487,10 @@ private:
 			CreateInfo.enabledLayerCount = 0;
 		}
 
+		// Open swap extension
+		CreateInfo.enabledExtensionCount = static_cast<uint32_t>(DeviceExtensions.size());
+		CreateInfo.ppEnabledExtensionNames = DeviceExtensions.data();
+
 		std::vector<VkDeviceQueueCreateInfo> QueueCreateInfos;
 		std::set<uint32_t> UniqueQueueFamilies = { Indices.GraphicsFamily.value(), Indices.PresentFamily.value() };
 
@@ -405,6 +513,13 @@ private:
 		// Get device queue
 		vkGetDeviceQueue(Device, Indices.GraphicsFamily.value(), 0, &GraphicsQueue);
 		vkGetDeviceQueue(Device, Indices.PresentFamily.value(), 0, &PresentQueue);
+	}
+
+	void CreateSwapChain()
+	{
+		SwapChainSupportDetails SwapChainSupport = QuerySwapChainSupport(PhysicDevice);
+
+		VkSurfaceFormatKHR SurfaceFormat = ChooseSwapSurfaceFormat(SwapChainSupport.Formats);
 	}
 
 	void MainLoop()
