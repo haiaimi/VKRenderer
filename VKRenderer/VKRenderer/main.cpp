@@ -60,6 +60,7 @@ private:
 		PickPhysicalDevice();
 		CreateLogicalDevice();
 		CreateSwapChain();
+		CreateImageViews();
 	}
 
 	void CreateInstance()
@@ -573,6 +574,35 @@ private:
 		SwapChainExtent = Extent;
 	}
 
+	void CreateImageViews()
+	{
+		SwapChainImageViews.resize(SwapChainImages.size());
+		for (size_t i = 0; i < SwapChainImages.size(); ++i)
+		{
+			VkImageViewCreateInfo CreateInfo{};
+			CreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+			CreateInfo.image = SwapChainImages[i];
+			CreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+			CreateInfo.format = SwapChainImageFormat;
+
+			CreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+			CreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+			CreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+			CreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+			CreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			CreateInfo.subresourceRange.baseMipLevel = 0;
+			CreateInfo.subresourceRange.levelCount = 1;
+			CreateInfo.subresourceRange.baseArrayLayer = 0;
+			CreateInfo.subresourceRange.layerCount = 1;
+
+			if (vkCreateImageView(Device, &CreateInfo, nullptr, &SwapChainImageViews[i]) != VK_SUCCESS)
+			{
+				throw std::runtime_error("failed to create views");
+			}
+		}
+	}
+
 	void MainLoop()
 	{
 		while (!glfwWindowShouldClose(Window))
@@ -586,6 +616,11 @@ private:
 		if (EnableValidationLayers)
 		{
 			DestroyDebugUtilMessengerEXT(Instance, DebugMessenger, nullptr);
+		}
+
+		for (auto ImageView : SwapChainImageViews)
+		{
+			vkDestroyImageView(Device, ImageView, nullptr);
 		}
 
 		vkDestroySurfaceKHR(Instance, Surface, nullptr);
@@ -620,6 +655,8 @@ private:
 	VkSwapchainKHR SwapChain;
 
 	std::vector<VkImage> SwapChainImages;
+
+	std::vector<VkImageView> SwapChainImageViews;
 
 	VkFormat SwapChainImageFormat;
 
