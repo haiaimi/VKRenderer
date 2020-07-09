@@ -16,6 +16,9 @@
 #include <set>
 #include <cstdint>
 #include <algorithm>
+#include "Common/FunctionLibrary.h"
+
+
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -61,6 +64,7 @@ private:
 		CreateLogicalDevice();
 		CreateSwapChain();
 		CreateImageViews();
+		CreateGraphicsPipeline();
 	}
 
 	void CreateInstance()
@@ -601,6 +605,12 @@ private:
 				throw std::runtime_error("failed to create views");
 			}
 		}
+	}
+
+	void CreateGraphicsPipeline()
+	{
+		auto VertShaderCode = ReadFile("Shaders/vert.spv");
+		auto FragShaderCode = ReadFile("Shaders/frag.spv");
 	}
 
 	void MainLoop()
