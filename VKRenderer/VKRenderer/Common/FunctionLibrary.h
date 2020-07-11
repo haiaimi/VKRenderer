@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <vector>
+#include <vcruntime.h>
 
 static std::vector<char> ReadFile(const std::string& FileName)
 {
@@ -23,7 +24,3 @@ static std::vector<char> ReadFile(const std::string& FileName)
 	return Buffer;
 }
 
-VkShaderModule CreateShaderModule(const std::vector<char>& Code)
-{
-
-}
