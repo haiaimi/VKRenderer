@@ -66,6 +66,7 @@ private:
 		CreateImageViews();
 		CreateRenderPass();
 		CreateGraphicsPipeline();
+		CreateFramebuffers();
 	}
 
 	void CreateInstance()
@@ -776,7 +777,32 @@ private:
 		{
 			throw std::runtime_error("failed to create pipeline layout!");
 		}
+		
+		VkPipelineShaderStageCreateInfo ShaderStages[2] = { VertShaderStageInfo, FragShaderStageInfo };
 
+		VkGraphicsPipelineCreateInfo PipelineInfo{};
+		PipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+		PipelineInfo.stageCount = 2;
+		PipelineInfo.pStages = ShaderStages;
+
+		PipelineInfo.pVertexInputState = &VertexInputInfo;
+		PipelineInfo.pInputAssemblyState = &InputAssembly;
+		PipelineInfo.pViewportState = &ViewportState;
+		PipelineInfo.pRasterizationState = &Rasterizer;
+		PipelineInfo.pMultisampleState = &Multisampling;
+		PipelineInfo.pDepthStencilState = nullptr;
+		PipelineInfo.pColorBlendState = &ColorBlending;
+		PipelineInfo.pDynamicState = nullptr;
+		PipelineInfo.layout = PipelineLayout;
+		PipelineInfo.renderPass = RenderPass;
+		PipelineInfo.subpass = 0;
+		PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+		PipelineInfo.basePipelineIndex = -1;
+
+		if (vkCreateGraphicsPipelines(Device, VK_NULL_HANDLE, 1, &PipelineInfo, nullptr, &GraphicsPipeline) != VK_SUCCESS)
+		{
+			throw std::runtime_error("failed to create graphics pipeline");
+		}
 
 		vkDestroyShaderModule(Device, FragShaderModule, nullptr);
 		vkDestroyShaderModule(Device, VertShaderModule, nullptr);
@@ -798,6 +824,30 @@ private:
 
 		return ShaderModule;
 	}
+
+	void CreateFramebuffers()
+	{
+		SwapChainFrambuffers.resize(SwapChainImageViews.size());
+
+		for (size_t i = 0; i < SwapChainImageViews.size(); ++i)
+		{
+			VkImageView Attachments[] = { SwapChainImageViews[i] };
+
+			VkFramebufferCreateInfo FramebufferInfo{};
+			FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+			FramebufferInfo.renderPass = RenderPass;
+			FramebufferInfo.attachmentCount = 1;
+			FramebufferInfo.pAttachments = Attachments;
+			FramebufferInfo.width = SwapChainExtent.width;
+			FramebufferInfo.height = SwapChainExtent.height;
+			FramebufferInfo.layers = 1;
+
+			if (vkCreateFramebuffer(Device, &FramebufferInfo, nullptr, &SwapChainFrambuffers[i]) != VK_SUCCESS)
+			{
+				throw std::runtime_error("failed to create frambuffer");
+			}
+		}
+	}
 	/// For pipeline
 	
 
@@ -816,18 +866,23 @@ private:
 			DestroyDebugUtilMessengerEXT(Instance, DebugMessenger, nullptr);
 		}
 
+		for (auto Frambuffer : SwapChainFrambuffers)
+		{
+			vkDestroyFramebuffer(Device, Frambuffer, nullptr);
+		}
+
 		for (auto ImageView : SwapChainImageViews)
 		{
 			vkDestroyImageView(Device, ImageView, nullptr);
 		}
 
-		vkDestroySurfaceKHR(Instance, Surface, nullptr);
-		vkDestroyInstance(Instance, nullptr);
-
-		vkDestroySwapchainKHR(Device, SwapChain, nullptr);
-
+		vkDestroyPipeline(Device, GraphicsPipeline, nullptr);
 		vkDestroyPipelineLayout(Device, PipelineLayout, nullptr);
 		vkDestroyRenderPass(Device, RenderPass, nullptr);
+
+		vkDestroySwapchainKHR(Device, SwapChain, nullptr);
+		vkDestroySurfaceKHR(Instance, Surface, nullptr);
+		vkDestroyInstance(Instance, nullptr);
 
 		vkDestroyDevice(Device, nullptr);
 
@@ -865,6 +920,10 @@ private:
 
 	VkRenderPass RenderPass;
 	VkPipelineLayout PipelineLayout;
+
+	VkPipeline GraphicsPipeline;
+
+	std::vector<VkFramebuffer> SwapChainFrambuffers;
 };
 
 int main()
