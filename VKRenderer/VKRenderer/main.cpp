@@ -644,6 +644,17 @@ private:
 		RenderPassInfo.subpassCount = 1;
 		RenderPassInfo.pSubpasses = &Subpass;
 
+		VkSubpassDependency Dependency{};
+		Dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+		Dependency.dstSubpass = 0;
+		Dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		Dependency.srcAccessMask = 0;
+		Dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		Dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+		RenderPassInfo.dependencyCount = 1;
+		RenderPassInfo.pDependencies = &Dependency;
+
 		if (vkCreateRenderPass(Device, &RenderPassInfo, nullptr, &RenderPass) != VK_SUCCESS) 
 		{
 			throw std::runtime_error("failed to create render pass!");
@@ -759,7 +770,7 @@ private:
 		ColorBlending.blendConstants[2] = 0.f;
 		ColorBlending.blendConstants[3] = 0.f;
 
-		VkDynamicState DynamicStates[] = {
+		/*VkDynamicState DynamicStates[] = {
 			VK_DYNAMIC_STATE_VIEWPORT,
 			VK_DYNAMIC_STATE_LINE_WIDTH
 		};
@@ -767,7 +778,7 @@ private:
 		VkPipelineDynamicStateCreateInfo DynamicState{};
 		DynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 		DynamicState.dynamicStateCount = 2;
-		DynamicState.pDynamicStates = DynamicStates;
+		DynamicState.pDynamicStates = DynamicStates;*/
 
 		VkPipelineLayoutCreateInfo PipelineLayoutInfo{};
 		PipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -800,7 +811,7 @@ private:
 		PipelineInfo.renderPass = RenderPass;
 		PipelineInfo.subpass = 0;
 		PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-		PipelineInfo.basePipelineIndex = -1;
+		//PipelineInfo.basePipelineIndex = -1;
 
 		if (vkCreateGraphicsPipelines(Device, VK_NULL_HANDLE, 1, &PipelineInfo, nullptr, &GraphicsPipeline) != VK_SUCCESS)
 		{
@@ -949,6 +960,7 @@ private:
 
 		SubmitInfo.commandBufferCount = 1;
 		SubmitInfo.pCommandBuffers = &CommandBuffer[ImageIndex];
+		//SubmitInfo.pSubmits
 
 		VkSemaphore SignalSemphores[] = { RenderFinishedSemaphore };
 		SubmitInfo.signalSemaphoreCount = 1;
@@ -958,8 +970,22 @@ private:
 		{
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
-	}
 
+		VkPresentInfoKHR PresentInfo{};
+		PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+		PresentInfo.waitSemaphoreCount = 1;
+		PresentInfo.pWaitSemaphores = SignalSemphores;
+
+		VkSwapchainKHR SwapChains[] = { SwapChain };
+		PresentInfo.swapchainCount = 1;
+		PresentInfo.pSwapchains = SwapChains;
+		PresentInfo.pImageIndices = &ImageIndex;
+		PresentInfo.pResults = nullptr;
+
+		vkQueuePresentKHR(PresentQueue, &PresentInfo);
+	}
+	//validation layer: Validation Error: [ VUID-vkQueueSubmit-pCommandBuffers-00071 ] Object 0: handle = 0x25ed602e270, type = VK_OBJECT_TYPE_DEVICE; | MessageID = 0x2e2f4d65 | VkCommandBuffer 0x25ed88a9b90[] is already in use and is not marked for simultaneous use. The Vulkan spec states: If any element of the pCommandBuffers member of any element of pSubmits was not recorded with the VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, it must not be in the pending state (https://vulkan.lunarg.com/doc/view/1.2.141.0/windows/1.2-extensions/vkspec.html#VUID-vkQueueSubmit-pCommandBuffers-00071)
 	void MainLoop()
 	{
 		while (!glfwWindowShouldClose(Window))
@@ -967,6 +993,8 @@ private:
 			glfwPollEvents();
 			DrawFrame();
 		}
+
+		vkQueueWaitIdle(PresentQueue);
 	}
 
 	void Cleanup()
@@ -976,28 +1004,28 @@ private:
 			DestroyDebugUtilMessengerEXT(Instance, DebugMessenger, nullptr);
 		}
 
+		vkDestroySemaphore(Device, RenderFinishedSemaphore, nullptr);
+		vkDestroySemaphore(Device, ImageAvailableSemaphore, nullptr);
+
+		vkDestroyCommandPool(Device, CommandPool, nullptr);
+
 		for (auto Frambuffer : SwapChainFrambuffers)
 		{
 			vkDestroyFramebuffer(Device, Frambuffer, nullptr);
-		}
-
-		for (auto ImageView : SwapChainImageViews)
-		{
-			vkDestroyImageView(Device, ImageView, nullptr);
 		}
 
 		vkDestroyPipeline(Device, GraphicsPipeline, nullptr);
 		vkDestroyPipelineLayout(Device, PipelineLayout, nullptr);
 		vkDestroyRenderPass(Device, RenderPass, nullptr);
 
+		for (auto ImageView : SwapChainImageViews)
+		{
+			vkDestroyImageView(Device, ImageView, nullptr);
+		}
+
 		vkDestroySwapchainKHR(Device, SwapChain, nullptr);
 		vkDestroySurfaceKHR(Instance, Surface, nullptr);
 		vkDestroyInstance(Instance, nullptr);
-
-		vkDestroyCommandPool(Device, CommandPool, nullptr);
-
-		vkDestroySemaphore(Device, RenderFinishedSemaphore, nullptr);
-		vkDestroySemaphore(Device, ImageAvailableSemaphore, nullptr);
 
 		vkDestroyDevice(Device, nullptr);
 
