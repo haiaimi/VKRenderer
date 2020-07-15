@@ -18,8 +18,6 @@
 #include <algorithm>
 #include "Common/FunctionLibrary.h"
 
-
-
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
@@ -887,6 +885,7 @@ private:
 
 	void CreateCommandBuffers()
 	{
+		//each swapchainframebuffer need a command buffer
 		CommandBuffer.resize(SwapChainFrambuffers.size());
 
 		VkCommandBufferAllocateInfo AllocInfo{};
@@ -1018,6 +1017,43 @@ private:
 		//vkQueueWaitIdle(PresentQueue);
 	}
 	//validation layer: Validation Error: [ VUID-vkQueueSubmit-pCommandBuffers-00071 ] Object 0: handle = 0x25ed602e270, type = VK_OBJECT_TYPE_DEVICE; | MessageID = 0x2e2f4d65 | VkCommandBuffer 0x25ed88a9b90[] is already in use and is not marked for simultaneous use. The Vulkan spec states: If any element of the pCommandBuffers member of any element of pSubmits was not recorded with the VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, it must not be in the pending state (https://vulkan.lunarg.com/doc/view/1.2.141.0/windows/1.2-extensions/vkspec.html#VUID-vkQueueSubmit-pCommandBuffers-00071)
+
+	void RecreateSwapChain()
+	{
+		vkDeviceWaitIdle(Device);
+
+		CleanupSwapChain();
+
+		CreateSwapChain();
+		CreateImageViews();
+		CreateRenderPass();
+		CreateGraphicsPipeline();
+		CreateFramebuffers();
+		CreateCommandBuffers();
+	}
+
+
+	void CleanupSwapChain()
+	{
+		for (size_t i = 0; i < SwapChainFrambuffers.size(); ++i)
+		{
+			vkDestroyFramebuffer(Device, SwapChainFrambuffers[i], nullptr);
+		}
+
+		vkFreeCommandBuffers(Device, CommandPool, static_cast<uint32_t>(CommandBuffer.size()), CommandBuffer.data());
+
+		vkDestroyPipeline(Device, GraphicsPipeline, nullptr);
+		vkDestroyPipelineLayout(Device, PipelineLayout, nullptr);
+		vkDestroyRenderPass(Device, RenderPass, nullptr);
+
+		for (size_t i = 0; i < SwapChainImageViews.size(); ++i)
+		{
+			vkDestroyImageView(Device, SwapChainImageViews[i], nullptr);
+		}
+
+		vkDestroySwapchainKHR(Device, SwapChain, nullptr);
+	}
+
 	void MainLoop()
 	{
 		while (!glfwWindowShouldClose(Window))
@@ -1036,6 +1072,8 @@ private:
 			DestroyDebugUtilMessengerEXT(Instance, DebugMessenger, nullptr);
 		}
 
+		CleanupSwapChain();
+
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
 		{
 			vkDestroySemaphore(Device, RenderFinishedSemaphores[i], nullptr);
@@ -1044,22 +1082,7 @@ private:
 		}
 
 		vkDestroyCommandPool(Device, CommandPool, nullptr);
-
-		for (auto Frambuffer : SwapChainFrambuffers)
-		{
-			vkDestroyFramebuffer(Device, Frambuffer, nullptr);
-		}
-
-		vkDestroyPipeline(Device, GraphicsPipeline, nullptr);
-		vkDestroyPipelineLayout(Device, PipelineLayout, nullptr);
-		vkDestroyRenderPass(Device, RenderPass, nullptr);
-
-		for (auto ImageView : SwapChainImageViews)
-		{
-			vkDestroyImageView(Device, ImageView, nullptr);
-		}
-
-		vkDestroySwapchainKHR(Device, SwapChain, nullptr);
+		
 		vkDestroySurfaceKHR(Instance, Surface, nullptr);
 		vkDestroyInstance(Instance, nullptr);
 
@@ -1115,6 +1138,26 @@ private:
 
 	size_t CurrentFrame = 0;
 };
+
+//template <typename T, uint32_t N>
+//char(&UE4ArrayCountHelper(const T(&)[N]))[N];
+//
+//
+//template <typename T, int Val>
+//T&& testVa = Val;
+//
+//
+//constexpr int N = 3;
+//
+//
+//
+//char(
+//	&ArrayTest(
+//		int
+//	)
+//)[N];
+
+
 
 int main()
 {
