@@ -16,13 +16,19 @@
     <Filter Include="源文件\Shaders">
       <UniqueIdentifier>{e0461028-228c-4298-95da-68f187b7167b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="源文件\Common">
-      <UniqueIdentifier>{613db065-1ec1-4e44-aac0-6e60ae40cea2}</UniqueIdentifier>
+    <Filter Include="头文件\Public">
+      <UniqueIdentifier>{da83e452-3cf4-4924-b072-305dc93c356b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\Public\Common">
+      <UniqueIdentifier>{1cbca67f-3417-4d47-933c-4659508234e3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\Private">
+      <UniqueIdentifier>{2fd639eb-8d7d-4a6b-8e1b-dfe8e0d20d68}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="Private\main.cpp">
+      <Filter>源文件\Private</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -34,11 +40,11 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Common\FunctionLibrary.h">
-      <Filter>源文件\Common</Filter>
+    <ClInclude Include="Public\Common\FunctionLibrary.h">
+      <Filter>头文件\Public\Common</Filter>
     </ClInclude>
-    <ClInclude Include="Common\VertexInput.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="Public\Common\VertexInput.h">
+      <Filter>头文件\Public\Common</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

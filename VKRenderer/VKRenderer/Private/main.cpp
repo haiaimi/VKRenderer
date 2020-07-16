@@ -16,8 +16,8 @@
 #include <set>
 #include <cstdint>
 #include <algorithm>
-#include "Common/FunctionLibrary.h"
-#include "Common/VertexInput.h"
+#include "../Public/Common/FunctionLibrary.h"
+#include "../Public/Common/VertexInput.h"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -405,7 +405,7 @@ private:
 			{
 				int Width, Height;
 				glfwGetFramebufferSize(Window, &Width, &Height);
-				VkExtent2D ActualExtent = { Width, Height };
+				VkExtent2D ActualExtent = { static_cast<uint32_t>(Width), static_cast<uint32_t>(Height) };
 				ActualExtent.width = std::max(Capabilities.minImageExtent.width, std::min(Capabilities.maxImageExtent.width, ActualExtent.width));
 				ActualExtent.height = std::max(Capabilities.minImageExtent.height, std::min(Capabilities.maxImageExtent.height, ActualExtent.height));
 			}
@@ -961,7 +961,8 @@ private:
 		VkMemoryAllocateInfo AllocInfo{};
 		AllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		AllocInfo.allocationSize = MemRequirements.size;
-		AllocInfo.memoryTypeIndex = FindMemoryType(MemRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		AllocInfo.memoryTypeIndex = FindMemoryType(MemRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT  // this memory can write it from cpu
+																				| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
 		if (vkAllocateMemory(Device, &AllocInfo, nullptr, &VertexBufferMemory) != VK_SUCCESS)
 		{
@@ -976,6 +977,7 @@ private:
 		vkBindBufferMemory(Device, VertexBuffer, VertexBufferMemory, 0);
 	}
 
+	// because graphics offer different types of memory to allocate, we should find the right type of memory to use 
 	uint32_t FindMemoryType(uint32_t TypeFilter, VkMemoryPropertyFlags Properties)
 	{
 		VkPhysicalDeviceMemoryProperties MemProperties;
@@ -1161,6 +1163,7 @@ private:
 		CleanupSwapChain();
 
 		vkDestroyBuffer(Device, VertexBuffer, nullptr);
+		vkFreeMemory(Device, VertexBufferMemory, nullptr);
 
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
 		{
