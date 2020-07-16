@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <algorithm>
 #include "Common/FunctionLibrary.h"
+#include "Common/VertexInput.h"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -71,6 +72,7 @@ private:
 		CreateGraphicsPipeline();
 		CreateFramebuffers();
 		CreateCommandPool();
+		CreateVertexBuffers();
 		CreateCommandBuffers();
 		CreateSyncObjects();
 	}
@@ -688,12 +690,19 @@ private:
 		FragShaderStageInfo.pName = "main";
 		FragShaderStageInfo.pSpecializationInfo = nullptr;
 
+		auto BindingDescription = Vertex::GetBindingDescription();
+		auto AttributeDescriptions = Vertex::GetAttributeDescriptions();
+
 		VkPipelineVertexInputStateCreateInfo VertexInputInfo{};
 		VertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 		VertexInputInfo.vertexBindingDescriptionCount = 0;
 		VertexInputInfo.pVertexBindingDescriptions = nullptr;
 		VertexInputInfo.vertexAttributeDescriptionCount = 0;
 		VertexInputInfo.pVertexAttributeDescriptions = 0;
+		VertexInputInfo.vertexBindingDescriptionCount = 1;
+		VertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(AttributeDescriptions.size());
+		VertexInputInfo.pVertexBindingDescriptions = &BindingDescription;
+		VertexInputInfo.pVertexAttributeDescriptions = AttributeDescriptions.data();
 
 		VkPipelineInputAssemblyStateCreateInfo InputAssembly{};
 		InputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -938,6 +947,49 @@ private:
 		}
 	}
 
+	void CreateVertexBuffers()
+	{
+		VkBufferCreateInfo BufferInfo{};
+		BufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		BufferInfo.size = sizeof(Vertices[0]) * Vertices.size();
+		BufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+		BufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		VkMemoryRequirements MemRequirements;
+		vkGetBufferMemoryRequirements(Device, VertexBuffer, &MemRequirements);
+
+		VkMemoryAllocateInfo AllocInfo{};
+		AllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		AllocInfo.allocationSize = MemRequirements.size;
+		AllocInfo.memoryTypeIndex = FindMemoryType(MemRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+		if (vkAllocateMemory(Device, &AllocInfo, nullptr, &VertexBufferMemory) != VK_SUCCESS)
+		{
+			throw std::runtime_error("failed to allocate vertex buffer memory!");
+		}
+
+		if(vkCreateBuffer(Device, &BufferInfo, nullptr, &VertexBuffer) != VK_SUCCESS)
+		{ 
+			throw std::runtime_error("failed to create vertex buffer!");
+		}
+
+		vkBindBufferMemory(Device, VertexBuffer, VertexBufferMemory, 0);
+	}
+
+	uint32_t FindMemoryType(uint32_t TypeFilter, VkMemoryPropertyFlags Properties)
+	{
+		VkPhysicalDeviceMemoryProperties MemProperties;
+		vkGetPhysicalDeviceMemoryProperties(PhysicDevice, &MemProperties);
+
+		for (uint32_t i = 0; i < MemProperties.memoryTypeCount; ++i)
+		{
+			if (TypeFilter & (1 << i) && (MemProperties.memoryTypes[i].propertyFlags & Properties) == Properties)
+				return i;
+		}
+
+		throw std::runtime_error("failed to find suitable memory type!");
+	}
+
 	/// For command
 	
 	void CreateSyncObjects()
@@ -1108,6 +1160,8 @@ private:
 
 		CleanupSwapChain();
 
+		vkDestroyBuffer(Device, VertexBuffer, nullptr);
+
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
 		{
 			vkDestroySemaphore(Device, RenderFinishedSemaphores[i], nullptr);
@@ -1172,6 +1226,9 @@ private:
 	std::vector<VkSemaphore> RenderFinishedSemaphores;
 	std::vector<VkFence> InFlightFences;
 	std::vector<VkFence> ImagesInFlight;
+
+	VkBuffer VertexBuffer;
+	VkDeviceMemory VertexBufferMemory;
 
 	size_t CurrentFrame = 0;
 };
