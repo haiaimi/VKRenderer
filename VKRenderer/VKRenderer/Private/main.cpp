@@ -73,6 +73,7 @@ private:
 		CreateFramebuffers();
 		CreateCommandPool();
 		CreateVertexBuffers();
+		CreateIndexBuffers();
 		CreateCommandBuffers();
 		CreateSyncObjects();
 	}
@@ -938,7 +939,13 @@ private:
 
 			vkCmdBeginRenderPass(CommandBuffer[i], &RenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 			vkCmdBindPipeline(CommandBuffer[i], VK_PIPELINE_BIND_POINT_GRAPHICS, GraphicsPipeline); //VK_PIPELINE_BIND_POINT_GRAPHICS means that pipeline is graphics pipeline
-			vkCmdDraw(CommandBuffer[i], 3, 1, 0, 0);
+
+			VkDeviceSize Offsets[1] = { 0 };
+			vkCmdBindVertexBuffers(CommandBuffer[i], 0, 1, &VertexBuffer, Offsets);
+			
+			vkCmdBindIndexBuffer(CommandBuffer[i], IndexBuffer, 0, VK_INDEX_TYPE_UINT16);
+			vkCmdDrawIndexed(CommandBuffer[i], static_cast<uint32_t>(Indices.size()), 1, 0, 0, 0);
+			//vkCmdDraw(CommandBuffer[i], 3, 1, 0, 0);
 			vkCmdEndRenderPass(CommandBuffer[i]);
 			if (vkEndCommandBuffer(CommandBuffer[i]) != VK_SUCCESS)
 			{
@@ -1060,6 +1067,26 @@ private:
 		//}
 
 		//vkBindBufferMemory(Device, VertexBuffer, VertexBufferMemory, 0);
+	}
+
+	void CreateIndexBuffers()
+	{
+		VkDeviceSize BufferSize = sizeof(Indices[0]) * Indices.size();
+
+		VkBuffer StagingBuffer;
+		VkDeviceMemory StagingBufferMemory;
+		CreateBuffer(BufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			StagingBuffer, StagingBufferMemory);
+
+		void* Data;
+		vkMapMemory(Device, StagingBufferMemory, 0, BufferSize, 0, &Data);
+		memcpy(Data, Indices.data(), (size_t)BufferSize);
+		vkUnmapMemory(Device, StagingBufferMemory);
+
+		CreateBuffer(BufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, IndexBuffer, IndexBufferMemory);
+
+		CopyBuffer(StagingBuffer, IndexBuffer, BufferSize);
+		vkFreeMemory(Device, StagingBufferMemory, nullptr);
 	}
 
 	// because graphics offer different types of memory to allocate, we should find the right type of memory to use 
@@ -1197,6 +1224,12 @@ private:
 
 		CleanupSwapChain();
 
+		vkDestroyBuffer(Device, IndexBuffer, nullptr);
+		vkFreeMemory(Device, IndexBufferMemory, nullptr);
+		
+		vkDestroyBuffer(Device, VertexBuffer, nullptr);
+		vkFreeMemory(Device, VertexBufferMemory, nullptr);
+
 		CreateSwapChain();
 		CreateImageViews();
 		CreateRenderPass();
@@ -1317,6 +1350,9 @@ private:
 
 	VkBuffer VertexBuffer;
 	VkDeviceMemory VertexBufferMemory;
+
+	VkBuffer IndexBuffer;
+	VkDeviceMemory IndexBufferMemory;
 
 	size_t CurrentFrame = 0;
 };

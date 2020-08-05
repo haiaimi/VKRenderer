@@ -32,6 +32,7 @@ struct Vertex
 		AttributeDescriptions[1].binding = 0;
 		AttributeDescriptions[1].location = 1;
 		AttributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+		AttributeDescriptions[1].offset = offsetof(Vertex, Color);
 
 		return AttributeDescriptions;
 	}
@@ -42,4 +43,9 @@ const std::vector<Vertex> Vertices =
 	{{0.f, -0.5f}, {1.f, 0.f, 0.f}},
 	{{0.5f, 0.5f}, {0.f, 1.f, 0.f}},
 	{{-0.5f, 0.5f}, {0.f, 0.f, 1.f}}
+};
+
+const std::vector<uint16_t> Indices =
+{
+	0, 1, 2, 2, 3, 0
 };
