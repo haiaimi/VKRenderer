@@ -40,12 +40,20 @@ struct Vertex
 
 const std::vector<Vertex> Vertices =
 {
-	{{0.f, -0.5f}, {1.f, 0.f, 0.f}},
-	{{0.5f, 0.5f}, {0.f, 1.f, 0.f}},
-	{{-0.5f, 0.5f}, {0.f, 0.f, 1.f}}
+	{{-0.5f, -0.5f}, {1.f, 0.f, 0.f}},
+	{{0.5f, -0.5f}, {0.f, 1.f, 0.f}},
+	{{0.5f, 0.5f}, {0.f, 0.f, 1.f}},
+	{{-0.5f, 0.5f}, {0.f, 1.f, 1.f}}
 };
 
 const std::vector<uint16_t> Indices =
 {
 	0, 1, 2, 2, 3, 0
+};
+
+struct UniformBufferObject
+{
+	glm::mat4 Model;
+	glm::mat4 View;
+	glm::mat4 Proj;
 };
