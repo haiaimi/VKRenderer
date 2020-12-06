@@ -75,7 +75,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)ThirdParty\Vulkan-Headers\include;$(SolutionDir)ThirdParty\glm;$(SolutionDir)ThirdParty\glfw\include;$(IncludePath)</IncludePath>
+    <IncludePath>G:\Vulkan\VKRenderer\VKRenderer\ThirdParty\stb;$(SolutionDir)ThirdParty\Vulkan-Headers\include;$(SolutionDir)ThirdParty\glm;$(SolutionDir)ThirdParty\glfw\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)ThirdParty\external\x64\lib;$(SolutionDir)ThirdParty\glfw\lib-vc2017;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
